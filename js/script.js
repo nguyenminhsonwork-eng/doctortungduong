@@ -31,74 +31,111 @@
             // Tự động phát hiện và áp dụng ngôn ngữ mặc định của thiết bị khách hàng
             const detectedLang = autoDetectDeviceLanguage();
             setLanguage(detectedLang);
-            
-            // Khởi tạo bảng giá & trình so sánh kéo trước sau
+
+            // Khởi tạo bảng giá & trình feedback slider phản hồi khách hàng
             renderServices(SERVICES_DATABASE);
-            initBeforeAfterSlider();
+            initFeedbackSlider();
+            initSurgeryGalleryLightbox();
         });
 
-        // TRÌNH KÉO KÉO KHÁM PHÁ SO SÁNH TRƯỚC VÀ SAU PHẪU THUẬT
-        function initBeforeAfterSlider() {
-            const baSlider = document.getElementById('ba-slider');
-            const baBeforeWrapper = document.getElementById('ba-before-wrapper');
-            const baBeforeImg = document.getElementById('ba-before-img');
-            const baHandle = document.getElementById('ba-handle');
+        // TRÌNH SLIDESHOW PHẢN HỒI KHÁCH HÀNG (TỰ ĐỘNG CHẠY, DỪNG KHI HOVER)
+        function initFeedbackSlider() {
+            const slider = document.getElementById('feedback-slider');
+            if (!slider) return;
 
-            if (baSlider && baBeforeWrapper && baBeforeImg && baHandle) {
-                function resizeBeforeImg() {
-                    const sliderWidth = baSlider.offsetWidth;
-                    baBeforeImg.style.width = sliderWidth + 'px';
-                }
+            const slides = slider.querySelectorAll('.feedback-slide');
+            const dots = slider.querySelectorAll('.feedback-dot');
+            const prevBtn = document.getElementById('feedback-prev');
+            const nextBtn = document.getElementById('feedback-next');
 
-                resizeBeforeImg();
-                window.addEventListener('resize', resizeBeforeImg);
+            if (!slides.length) return;
 
-                let isDragging = false;
+            let currentIndex = 0;
+            let autoTimer = null;
 
-                function updateSlider(clientX) {
-                    const rect = baSlider.getBoundingClientRect();
-                    const posX = clientX - rect.left;
-                    let percentage = (posX / rect.width) * 100;
+            function goTo(index) {
+                // Wrap around
+                if (index < 0) index = slides.length - 1;
+                if (index >= slides.length) index = 0;
 
-                    if (percentage < 0) percentage = 0;
-                    if (percentage > 100) percentage = 100;
-
-                    baBeforeWrapper.style.width = percentage + '%';
-                    baHandle.style.left = percentage + '%';
-                }
-
-                baSlider.addEventListener('mousedown', (e) => {
-                    isDragging = true;
-                    updateSlider(e.clientX);
+                // Hide all slides
+                slides.forEach((slide, i) => {
+                    slide.style.opacity = i === index ? '1' : '0';
+                    slide.style.zIndex = i === index ? '1' : '0';
                 });
 
-                window.addEventListener('mousemove', (e) => {
-                    if (!isDragging) return;
-                    updateSlider(e.clientX);
-                });
-
-                window.addEventListener('mouseup', () => {
-                    isDragging = false;
-                });
-
-                baSlider.addEventListener('touchstart', (e) => {
-                    isDragging = true;
-                    if (e.touches.length > 0) {
-                        updateSlider(e.touches[0].clientX);
+                // Update dots
+                dots.forEach((dot, i) => {
+                    if (i === index) {
+                        dot.classList.remove('bg-white/60', 'w-1.5', 'h-1.5');
+                        dot.classList.add('bg-brand-gold', 'w-2', 'h-2');
+                    } else {
+                        dot.classList.remove('bg-brand-gold', 'w-2', 'h-2');
+                        dot.classList.add('bg-white/60', 'w-1.5', 'h-1.5');
                     }
                 });
 
-                window.addEventListener('touchmove', (e) => {
-                    if (!isDragging) return;
-                    if (e.touches.length > 0) {
-                        updateSlider(e.touches[0].clientX);
-                    }
-                });
+                currentIndex = index;
+            }
 
-                window.addEventListener('touchend', () => {
-                    isDragging = false;
+            function startAutoPlay() {
+                stopAutoPlay();
+                autoTimer = setInterval(() => {
+                    goTo(currentIndex + 1);
+                }, 5000);
+            }
+
+            function stopAutoPlay() {
+                if (autoTimer) {
+                    clearInterval(autoTimer);
+                    autoTimer = null;
+                }
+            }
+
+            // Navigation buttons
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    goTo(currentIndex - 1);
+                    startAutoPlay(); // Reset timer on manual nav
                 });
             }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    goTo(currentIndex + 1);
+                    startAutoPlay(); // Reset timer on manual nav
+                });
+            }
+
+            // Dot navigation
+            dots.forEach((dot) => {
+                dot.addEventListener('click', () => {
+                    const idx = parseInt(dot.getAttribute('data-index'), 10);
+                    goTo(idx);
+                    startAutoPlay(); // Reset timer on manual nav
+                });
+            });
+
+            // Pause on hover
+            slider.addEventListener('mouseenter', stopAutoPlay);
+            slider.addEventListener('mouseleave', startAutoPlay);
+
+            // Touch swipe support
+            let touchStartX = 0;
+            slider.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                stopAutoPlay();
+            }, { passive: true });
+            slider.addEventListener('touchend', (e) => {
+                const diff = touchStartX - e.changedTouches[0].clientX;
+                if (Math.abs(diff) > 40) {
+                    goTo(diff > 0 ? currentIndex + 1 : currentIndex - 1);
+                }
+                startAutoPlay();
+            }, { passive: true });
+
+            // Initialize first slide and start auto-play
+            goTo(0);
+            startAutoPlay();
         }
 
         function renderServices(data) {
@@ -293,6 +330,102 @@
                 setTimeout(() => {
                     messageBox.classList.add('hidden');
                 }, 8000);
+            });
+        }
+
+        // TRÌNH XEM ẢNH GIAN HÀNG PHẪU THUẬT LÂM SÀNG (LIGHTBOX)
+        function initSurgeryGalleryLightbox() {
+            const galleryItems = document.querySelectorAll('#surgery-gallery .group');
+            const lightbox = document.getElementById('gallery-lightbox');
+            const lightboxImg = document.getElementById('lightbox-img');
+            const lightboxCaption = document.getElementById('lightbox-caption');
+            const lightboxCounter = document.getElementById('lightbox-counter');
+            const closeBtn = document.getElementById('lightbox-close');
+            const prevBtn = document.getElementById('lightbox-prev');
+            const nextBtn = document.getElementById('lightbox-next');
+
+            if (!lightbox || !lightboxImg || !lightboxCounter) return;
+
+            let currentIndex = 0;
+            const imagesData = Array.from(galleryItems).map((item, index) => {
+                const img = item.querySelector('img');
+                return {
+                    src: img ? img.src : '',
+                    element: item
+                };
+            });
+
+            function showImage(index) {
+                if (index < 0 || index >= imagesData.length) return;
+                currentIndex = index;
+                const data = imagesData[currentIndex];
+                
+                lightboxImg.src = data.src;
+                lightboxCounter.textContent = `${currentIndex + 1} / ${imagesData.length}`;
+            }
+
+            function openLightbox(index) {
+                showImage(index);
+                lightbox.classList.remove('hidden');
+                setTimeout(() => {
+                    lightbox.classList.remove('opacity-0');
+                }, 10);
+                document.body.style.overflow = 'hidden'; // Chặn cuộn trang bên dưới
+            }
+
+            function closeLightbox() {
+                lightbox.classList.add('opacity-0');
+                setTimeout(() => {
+                    lightbox.classList.add('hidden');
+                }, 300);
+                document.body.style.overflow = '';
+            }
+
+            galleryItems.forEach((item, index) => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('a, button')) return;
+                    openLightbox(index);
+                });
+            });
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeLightbox);
+            }
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    let newIndex = currentIndex - 1;
+                    if (newIndex < 0) newIndex = imagesData.length - 1;
+                    showImage(newIndex);
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    let newIndex = currentIndex + 1;
+                    if (newIndex >= imagesData.length) newIndex = 0;
+                    showImage(newIndex);
+                });
+            }
+
+            lightbox.addEventListener('click', (e) => {
+                if (e.target === lightbox) {
+                    closeLightbox();
+                }
+            });
+
+            // Hỗ trợ phím tắt bàn phím
+            document.addEventListener('keydown', (e) => {
+                if (lightbox.classList.contains('hidden')) return;
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                } else if (e.key === 'ArrowLeft') {
+                    prevBtn.click();
+                } else if (e.key === 'ArrowRight') {
+                    nextBtn.click();
+                }
             });
         }
 
