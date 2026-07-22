@@ -1,6 +1,4 @@
-/* ============================================================
-   CODE BẢO MẬT (Tương thích 100% iOS Safari & Touch Devices)
-   ============================================================ */
+
     (function(){
       // Kiểm tra xem thiết bị có phải di động hay không
       var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -57,9 +55,7 @@
         e.preventDefault(); 
       });
      
-      // 4. Kiểm tra phát hiện DevTools mở (CHỈ CHẠY TRÊN DESKTOP)
-      // Trên iPhone, Pinch-To-Zoom hoặc thanh điều hướng Safari co dãn làm lệch kích thước hiển thị cửa sổ.
-      // Do đó, ta chặn hoàn toàn đoạn code này chạy trên iOS/Android để tránh lỗi khoá trang sai trên Mobile.
+
       if (!isMobile) {
         var devOpen = false;
         var threshold = 160;
